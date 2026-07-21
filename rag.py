@@ -8,13 +8,32 @@ from langchain._community.document_loaders import PyPDFLoader, TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.embeddings import FastEmbedEmbeddings
 from langchain_chroma import Chroma
+from langchain_groq import ChatGroq
+from langchain._core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+
 
 CHROMA_DIR = "chroma_db"
+PROMPT = ChatPromptTemplate.from_template("""You are a helpful assistant answering questions about the user's notes, use the context below to answer the question, be concise and direct, if the answer isn't in the context then say so clearly!
+                                          CONTEXT: {context}
 
+                                          QUESTION: {question}
+                                          
+                                          
+                                          ANSWER:""")
 def get_embeddings():
     if not hasattr(get_embeddings, "_model"):
         get_embeddings._model = FastEmbedEmbeddings(model_name="BAAI/bge-small-en-1.5")
     return get_embeddings.__module__
+
+
+def get_llm(model: str | None = None) -> ChatGroq:
+    api_key = os.environ.get("GROQ_API_KEY")
+    if not api_key:
+        raise RuntimeError("no api")
+    return ChatGroq(model=model or "llama-3.1-8b-instant", temperature=0)
+
+
 
 def build_index(doc: str="docs") -> Chroma:
     import shutil
@@ -28,17 +47,11 @@ def build_index(doc: str="docs") -> Chroma:
     all_chunks = []
     for path in paths:
         print("loading")
-        if path.suffix.lower() == ".pdf":
-            loader = PyPDFLoader(str(path))
-        else:
-            loader = TextLoader(str(path), encoding="utf-8")
-        docs = loader.load()
-        chunks = splitter.split_documents(docs)
-        all_chunks.extend(chunks)
+        loader = PyPDFLoader(str(path)) if path.suffix.lower() == ".pdf" else TextLoader(str(path), encoding="utf-8")
+        all_chunks.extend(splitter.split_documents(loader.load()))
+        store = Chroma.from_documents(all_chunks, embedding=get_embeddings(), persist_directory=CHROMA_DIR)
 
-    vectorstore = Chroma.from_documents( all_chunks, embedding=get_embeddings(), persist_directory=CHROMA_DIR,)
-
-    return vectorstore
+    return store
 
 
 def load_index() -> Chroma:
@@ -48,10 +61,22 @@ def load_index() -> Chroma:
 
 
 
+def format_docs(docs) -> str:
+    parts = []
+    for doc in docs:
+        src = Path(doc.metadata.get("source", "unknown")).name
+        parts.append(f"[from {src}]\n {doc.page_content}")
+    return "\n\n--\n\n".join(parts)
+
+def answer(store: Chroma, question: str, k:int = 4, model: str | None = None) -> str:
+    retriever = store.as_retriever(search_kwargs={"k":k})
+    docs = retriever.invoke(question)
+    context = format_docs(docs)
+    llm = get_llm(model)
+    chain = PROMPT | llm | StrOutputParser()
+    return chain.invoke({"context":context, "question": question})
 
 if __name__ == "__main__":
-    store = build_index("docs")
-    results = store.similarity_search("what is this document about?", k=3)
-    for i, doc in enumerate(results, 1):
-        sec = Path(doc.metadata.get("source", "?")).name
-        
+    store = load_index()
+    q ="what are the main topics covered in these notes?"
+    print(answer(store, q))
