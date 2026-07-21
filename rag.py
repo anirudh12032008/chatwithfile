@@ -74,9 +74,5 @@ def answer(store: Chroma, question: str, k:int = 4, model: str | None = None) ->
     context = format_docs(docs)
     llm = get_llm(model)
     chain = PROMPT | llm | StrOutputParser()
-    return chain.invoke({"context":context, "question": question})
-
-if __name__ == "__main__":
-    store = load_index()
-    q ="what are the main topics covered in these notes?"
-    print(answer(store, q))
+    token_gen = chain.stream({"context":context, "question": question})
+    return docs, token_gen

@@ -16,8 +16,10 @@ def cmd_chat(args):
             continue
         if q.lower() in ("quit", "exit", "q"):
             break
-        reply = rag.answer(store, q, k=args.k, model=args.model)
-        print(reply)
+        docs, token_gen = rag.answer(store, q, k=args.k, model=args.model())
+        for t in token_gen:
+            print(t, end="", flush=True)
+        print("\n")
 
 def main():
     p = argparse.ArgumentParser(description="Chat")
