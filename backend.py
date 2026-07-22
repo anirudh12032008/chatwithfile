@@ -1,0 +1,73 @@
+import os
+import shutil
+from pathlib import Path
+from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+import rag
+
+
+DOCS_DIR = "docs"
+app = FastAPI(title="chat with your notes")
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+_store = None
+_curr_file: str | None = None
+
+def get_store():
+    global _store
+    if _store is None:
+        try:
+
+            _store = rag.load_index()
+        except FileNotFoundError:
+            pass
+    return _store
+
+
+# fast api stuff
+@app.get("/api/status")
+def status():
+    return {
+        "index_ready": get_store() is not None,
+        "groq_key_set": bool(os.environ.get("GROQ_API_KEY")),
+        "current_file": _curr_file,
+    }
+
+@app.post("/api/upload")
+async def upload(file: UploadFile = File(...)):
+    global _store, _curr_file
+    if Path(file.filename).suffix.lower() not in (".pdf", ".txt", ".md"):
+        raise HTTPException(400, "wrong file type")
+    docs_dir = Path(DOCS_DIR)
+    if docs_dir.exists():
+        shutil.rmtree(docs_dir)
+    docs_dir.mkdir(parents=True)
+    dest = docs_dir / file.filename
+    dest.write_bytes(await file.read())
+
+    try:
+        _store = rag.build_index(DOCS_DIR)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    _curr_file = file.filename
+    return {"ok": True, "filename": file.filename}
+
+class ChatRequest(Basemodel):
+    question: str
+    k: int = 5
+    model: str | None = None
+
+@app.post("/api/chat")
+def chat(req: ChatRequest):
+    store = get_store()
+    if store is None:
+        raise HTTPException(400, "no index")
+    try:
+        docs, token_gen = rag.answer(store, req.question, k=req.k, model=req.model)
+        answer = "".join(token_gen)
+    except RuntimeError as e:
+        raise HTTPException(500, str(e))
+    sources = [
+        {"source": Path(d.metadata.get("source", "?")).name, "preview": d.page_content[:300]} for d in docs
+    ]
+    return {"answer": answer, "sources": sources}
