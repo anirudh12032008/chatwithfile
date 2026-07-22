@@ -3,6 +3,7 @@ import shutil
 from pathlib import Path
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from fastapi.staticfiles import StaticFiles
 import rag
@@ -60,18 +61,30 @@ class ChatRequest(Basemodel):
 
 @app.post("/api/chat")
 def chat(req: ChatRequest):
+    import json
     store = get_store()
     if store is None:
-        raise HTTPException(400, "no index")
+        return StreamingResponse( iter(["data: [ERROR] upload a file first"]), media_type='text/event-stream')
     try:
         docs, token_gen = rag.answer(store, req.question, k=req.k, model=req.model)
-        answer = "".join(token_gen)
     except RuntimeError as e:
-        raise HTTPException(500, str(e))
-    sources = [
-        {"source": Path(d.metadata.get("source", "?")).name, "preview": d.page_content[:300]} for d in docs
-    ]
-    return {"answer": answer, "sources": sources}
+        return StreamingResponse( iter([f"data: [ERROR] {e}"]), media_type="text/event-stream",)
+
+    def event_stream():
+        sources = [
+            {"source": Path(d.metadata.get("source", "?")).name, "preview": d.page_content[:300]} for d in docs
+        ]
+        yield f"event: sources\n data: {json.dumps(sources)}"
+        for t in token_gen:
+            yield f"data: {json.dumps(t)}"
+        yield "event: done data: {}"
+    return StreamingResponse(event_stream(), media_type="text/event-stream", headers={
+        "Cache=Control": "no-cache",
+        "Connection": "keep-alive",
+        "X-Accel-Buffering": "no",
+    },)
+
+
 
 app.mount("/", StaticFiles(directory="static", html=True), name="static")
 
