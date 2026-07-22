@@ -88,21 +88,46 @@
         async function sendQuestion(){
             const input = document.getElementById('question');
             const question = input.value.trim();
-            if (!question) return;
+            if (!question || !indexReady) return;
             input.value = ''
             addMsg('user', question);
-            const botContent = addMsg('bot', 'thinking..........');
+            const botContent = addMsg('bot', '');
             const res = await fetch('/api/chat', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({question}),
             });
-            if (!res.ok){
-                botContent.textContent = 'Error:';
-                return;
+
+
+            const reader = res.body.getReader();
+            const decoder = new TextDecoder();
+            let buf = '';
+            let fullText = '';
+            while (true){
+                const { done, value} = await reader.read();
+                if(done) break;
+                buf += decoder.decode(value, {stream: true});
+                const events = buf.split('\n\n');
+                buf = events.pop();
+                for (const e of events){
+                    const lines = evt.split('\n');
+                    let eventType = 'message';
+                    let data = '';
+                    for ( const l of lines){
+                        if (line.startsWith('event: ')) eventType = l.slice(7);
+                        if (line.startsWith('data: ')) data = line.slice(6);
+                    }
+                    if (eventType === 'sources'){
+                        console.log('sources: ', JSON.parse(data));
+                    } else if (eventType === 'done') {
+
+                    } else if (data){
+                        fullText += JSON.parse(data);
+                        botContent.textContent = fullText;
+                        document.getElementById('chat').scrollTop = 1000;
+                    }
+                }
             }
-            const data = await res.json();
-            botContent.textContent = data.answer;
         }
         document.getElementById('sendBtn').addEventListener('click', sendQuestion);
         document.getElementById('question').addEventListener('keydown', (e) => {
