@@ -4,6 +4,7 @@ from pathlib import Path
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from fastapi.staticfiles import StaticFiles
 import rag
 
 
@@ -71,3 +72,6 @@ def chat(req: ChatRequest):
         {"source": Path(d.metadata.get("source", "?")).name, "preview": d.page_content[:300]} for d in docs
     ]
     return {"answer": answer, "sources": sources}
+
+app.mount("/", StaticFiles(directory="static", html=True), name="static")
+

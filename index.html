@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>chat with your notes</title>
+</head>
+<body>
+    <h1>chat with your notes</h1>
+    <div id="status">Checking..</div>
+    <div id="uploadArea"><p>upload a .pdf .txt or .md</p>
+    
+    <input type="file" id="fileInput" accept=".pdf,.txt,.md"/>
+    <p id="uploadMsg"></p>
+    </div>
+
+
+
+    <div id="chat">
+        <p>upload a doc pls</p>
+    </div>
+    <div id="composer">
+<input type="text" id="question" placeholder="ask"/>
+<button id="sendBtn" disabled>Send</button>
+    </div>
+
+
+
+
+
+
+
+
+
+
+
+    <script>
+        let indexReady = false;
+        async function refreshStatus(){
+            const res = await fetch('/api/status');
+            const data = await res.json();
+            indexReady = data.index_ready;
+            const el = document.getElementById('status');
+            if (!data.groq_key_set){
+                el.textContent= 'no api';
+            } else if (!data.index_ready){
+                el.textContent = 'upload doc'
+            } else {
+                el.textContent = `index ready (${data.curr_file})`;
+
+            }
+            document.getElementById('sentBtn').disabled = !data.index_ready;
+        }
+        document.getElementById('fileInput').addEventListener('change', async (e)=> {
+            const file = e.target.files[0];
+            if (!file) return;
+            const msg = document.getElementById('uploadMsg');
+            msg.textContent = 'uploading and indexing';
+            const fd = new FormData();
+            fd.append('file', file);
+            const res = await fetch('/api/upload', {method: 'POST',body: fd });
+            if (!res.ok){
+                const err = await res.json().catch(()=> ({}));
+                msg.textContent = err.detail;
+
+            } else {
+                msg.textContent = 'success';
+            }
+            await refreshStatus();
+            e.target.value = '';
+        });
+
+
+        function addMsg(role, txt){
+            const chat = document.getElementById('chat');
+            const placeholder = chat.querySelector('p');
+            if (placeholder) placeholder.remove();
+            const div = document.createElement('div');
+            div.className = 'msg' + role;
+            div.innerHTML = `<div> ${role === 'user' ? 'you': 'bot'}</div>
+            <div>${text}</div>`;
+            chat.appendChild(div);
+            chat.scrollTop = chat.scrollHeight;
+            return div.querySelector('.content');
+        }
+
+
+        async function sendQuestion(){
+            const input = document.getElementById('question');
+            const question = input.value.trim();
+            if (!question) return;
+            input.value = ''
+            addMsg('user', question);
+            const botContent = addMsg('bot', 'thinking..........');
+            const res = await fetch('/api/chat', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({question}),
+            });
+            if (!res.ok){
+                botContent.textContent = 'Error:';
+                return;
+            }
+            const data = await res.json();
+            botContent.textContent = data.answer;
+        }
+        document.getElementById('sendBtn').addEventListener('click', sendQuestion);
+        document.getElementById('question').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') sendQuestion();
+        });
+
+        refreshStatus();
+    </script>
+</body>
+</html>
