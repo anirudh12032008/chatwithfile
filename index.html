@@ -6,23 +6,38 @@
     <title>chat with your notes</title>
 </head>
 <body>
-    <h1>chat with your notes</h1>
-    <div id="status">Checking..</div>
-    <div id="uploadArea"><p>upload a .pdf .txt or .md</p>
-    
+    <aside>
+
+        <h1>chat with your notes</h1>
+        <div id="status">Checking..</div>
+        <h2>Model</h2>
+        <input id="model" type="text" value="llama-3.1-8b-instant"/>
+        <h2>Retrieval</h2>
+        <label for="">chunks (k)</label>
+        <input type="number" id="k" value="4" min="1" max="10"/>
+
+        <h2>document</h2>
     <input type="file" id="fileInput" accept=".pdf,.txt,.md"/>
-    <p id="uploadMsg"></p>
-    </div>
+    <div id="curr_file">no doc uploaded</div>
+        <button id="clearBtn" >clear chat</button>
+    </aside>
 
+    <main>
+<div class="chat" id="chat">
+<div id="emptyState">upload a document in the sidebar</div>
+</div>
 
-
-    <div id="chat">
-        <p>upload a doc pls</p>
-    </div>
-    <div id="composer">
+    <div class="composer">
 <input type="text" id="question" placeholder="ask"/>
-<button id="sendBtn" disabled>Send</button>
+<button id="sendBtn">Send</button>
     </div>
+
+    </main>
+
+
+
+    
+
 
 
 
@@ -35,53 +50,59 @@
 
 
     <script>
+        const chatEl = document.getElementById('chat');
+        const el = document.getElementById('statusBox');
         let indexReady = false;
         async function refreshStatus(){
-            const res = await fetch('/api/status');
-            const data = await res.json();
+        
+            const data = await fetch('/api/status').then(r => r.json());
             indexReady = data.index_ready;
-            const el = document.getElementById('status');
             if (!data.groq_key_set){
                 el.textContent= 'no api';
             } else if (!data.index_ready){
                 el.textContent = 'upload doc'
             } else {
-                el.textContent = `index ready (${data.curr_file})`;
+                el.textContent = 'index ready';
 
             }
-            document.getElementById('sentBtn').disabled = !data.index_ready;
+            const cd = document.getElementById('currentFile');
+            cd.textContent = data.curr_file ? `${data.curr_file}`: 'no doc';
+
         }
         document.getElementById('fileInput').addEventListener('change', async (e)=> {
             const file = e.target.files[0];
             if (!file) return;
-            const msg = document.getElementById('uploadMsg');
-            msg.textContent = 'uploading and indexing';
+            document.getElementById('currentFile').textContent = 'uploading and indexing';
             const fd = new FormData();
             fd.append('file', file);
             const res = await fetch('/api/upload', {method: 'POST',body: fd });
             if (!res.ok){
                 const err = await res.json().catch(()=> ({}));
-                msg.textContent = err.detail;
-
-            } else {
-                msg.textContent = 'success';
-            }
-            await refreshStatus();
+                alert(err.detail);
+            } 
             e.target.value = '';
+            await refreshStatus();
+
+        });
+
+        document.getElementById('clearBtn').addEventListener('click', ()=> {
+            chatEl.innerHTML = '';
+            chatEl.appendChild(document.getElementById('emptyState'));
         });
 
 
         function addMsg(role, txt){
-            const chat = document.getElementById('chat');
-            const placeholder = chat.querySelector('p');
-            if (placeholder) placeholder.remove();
+            document.getElementById('emptyState').remove();
+
             const div = document.createElement('div');
             div.className = 'msg' + role;
             div.innerHTML = `<div> ${role === 'user' ? 'you': 'bot'}</div>
-            <div>${text}</div>`;
-            chat.appendChild(div);
-            chat.scrollTop = chat.scrollHeight;
-            return div.querySelector('.content');
+            <div></div>`;
+            chatEl.appendChild(div);
+            const content = div.querySelector('.content');
+            if (txt) content.textContent = txt;
+            chatEl.scrollTop = chat.scrollHeight;
+            return content;
         }
 
 
@@ -92,10 +113,13 @@
             input.value = ''
             addMsg('user', question);
             const botContent = addMsg('bot', '');
+            const model = document.getElementById('model').value;
+            const k = Number(document.getElementById('k').value);
+
             const res = await fetch('/api/chat', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({question}),
+                body: JSON.stringify({question, model, k}),
             });
 
 
@@ -110,27 +134,23 @@
                 const events = buf.split('\n\n');
                 buf = events.pop();
                 for (const e of events){
-                    const lines = evt.split('\n');
-                    let eventType = 'message';
-                    let data = '';
-                    for ( const l of lines){
+                    let eventType = 'message', data = '';
+                    for ( const l of evt.split('\n')){
                         if (line.startsWith('event: ')) eventType = l.slice(7);
                         if (line.startsWith('data: ')) data = line.slice(6);
                     }
                     if (eventType === 'sources'){
                         console.log('sources: ', JSON.parse(data));
-                    } else if (eventType === 'done') {
-
-                    } else if (data){
+                    } else if (eventType !== 'done' && data){
                         fullText += JSON.parse(data);
                         botContent.textContent = fullText;
-                        document.getElementById('chat').scrollTop = 1000;
+                        chatEl.scrollTop = chatEl.scrollHeight;
                     }
                 }
             }
         }
         document.getElementById('sendBtn').addEventListener('click', sendQuestion);
-        document.getElementById('question').addEventListener('keydown', (e) => {
+        document.getElementById('question').addEventListener('keydown', e => {
             if (e.key === 'Enter') sendQuestion();
         });
 
