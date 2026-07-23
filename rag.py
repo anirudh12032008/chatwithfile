@@ -4,7 +4,7 @@ os.environ.setdefault("ANNONYMIZED_TELEMETRY", "False")
 import logging
 logging.getLogger("chromadb.telemetry").setLevel(logging.CRITICAL)
 import gc
-from langchain._community.document_loaders import PyPDFLoader, TextLoader
+from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.embeddings import FastEmbedEmbeddings
 from langchain_chroma import Chroma
@@ -13,7 +13,7 @@ from langchain._core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 
 
-CHROMA_DIR = "chroma_db"
+CHROMA_DIR = os.environ.get("CHROMA_DIR", "chroma_db")
 PROMPT = ChatPromptTemplate.from_template("""You are a helpful assistant answering questions about the user's uploaded notes
                                           base your answer primarily on the context below, synthesize and explain it in your own words, don't just copy lines verbatim, only reach for outside general knowledge in small amount 
                                           and only when it's needed to clarify a term or fill a small gap the notes don't cover. Stay focused on what the notes actually say, don't wander into a broader lecture on the topic. if you bring in something not in the CONTEXT, make it clear, when a fact comes from the notes, mention the source file
