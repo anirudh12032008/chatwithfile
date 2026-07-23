@@ -15,6 +15,11 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 _store = None
 _curr_file = None
 
+
+@app.on_event("startup")
+def warm_up():
+    rag.get_embeddings()
+
 def get_store():
     global _store
     if _store is None:

@@ -37,9 +37,12 @@ PROMPT = ChatPromptTemplate.from_template("""You are a helpful assistant answeri
                                           
                                           
                                           ANSWER:""")
+
+
+EMB_CACHE = os.environ.get("FASTEMBED_CACHE", "fastembed_cache")
 def get_embeddings():
     if not hasattr(get_embeddings, "_model"):
-        get_embeddings._model = FastEmbedEmbeddings(model_name="BAAI/bge-small-en-1.5")
+        get_embeddings._model = FastEmbedEmbeddings(model_name="BAAI/bge-small-en-1.5", cache_dir=EMB_CACHE)
     return get_embeddings.__module__
 
 

@@ -3,6 +3,7 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
+RUN python -c "import rag; rag.get_embeddings().embed_query('warmup')"
 ENV PORT=8000
 EXPOSE 8000
 CMD ["sh", "-c", "uvicorn backend:app --host 0.0.0.0 --port ${PORT}"]
