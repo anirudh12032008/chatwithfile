@@ -6,44 +6,30 @@ import argparse
 import rag 
 
 def cmd_index(args):
+    print(f"indexing '{args.docs}'..")
     rag.build_index(args.docs)
+    print("done")
 
 def cmd_chat(args):
     store = rag.load_index()
     while True:
-        q = input().strip()
-        if not q:
-            continue
-        if q.lower() in ("quit", "exit", "q"):
+        q = input("you > ").strip()
+        if not q or q.lower() in ("quit", "exit", "q"):
             break
-        docs, token_gen = rag.answer(store, q, k=args.k, model=args.model())
-
-
-
-        if args.show_chunks:
-            print(f"\n retrieved chunks ")
-            for i , d in enumerate(docs, 1):
-                src = os.path.basename(d.metadata.get("source", "?"))
-                prev = d.page_content[:120].replace("\n", " ")
-                print(f"{i}. [{src}] {prev}.....")
-            print()
+        docs, token_gen = rag.answer(store, q)
+        print('\nbot > ', end="", flush=True)
         for t in token_gen:
             print(t, end="", flush=True)
         print("\n")
 
 def main():
-    p = argparse.ArgumentParser(description="Chat")
+    p = argparse.ArgumentParser(description="Chatwithfile CLI")
     sub = p.add_subparsers(dest="command", required=True)
-    pi = sub.add_parser("index", help="build index")
+    pi = sub.add_parser("index", help="build index from docs/")
     pi.add_argument("--docs", default="docs")
-    pi.add_argument("--overlap", type=int, default=150)
     pi.set_defaults(func=cmd_index)
     pc = sub.add_parser("chat")
-    pc.add_argument("--model", default=None)
-    pc.add_argument("--k", type=int, default=4)
-    pc.add_argument("--show-chunks", action="store_true", help="print all chunks")
     pc.set_defaults(func=cmd_chat)
-
     args = p.parse_args()
     args.func(args)
 

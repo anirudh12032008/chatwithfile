@@ -13,7 +13,7 @@ DOCS_DIR = os.environ.get("DOCS_DIR", "docs")
 app = FastAPI(title="chat with your notes")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 _store = None
-_curr_file: str | None = None
+_curr_file = None
 
 def get_store():
     global _store
@@ -54,10 +54,8 @@ async def upload(file: UploadFile = File(...)):
     _curr_file = file.filename
     return {"ok": True, "filename": file.filename}
 
-class ChatRequest(Basemodel):
+class ChatRequest(BaseModel):
     question: str
-    k: int = 5
-    model: str | None = None
 
 @app.post("/api/chat")
 def chat(req: ChatRequest):
@@ -66,7 +64,7 @@ def chat(req: ChatRequest):
     if store is None:
         return StreamingResponse( iter(["data: [ERROR] upload a file first"]), media_type='text/event-stream')
     try:
-        docs, token_gen = rag.answer(store, req.question, k=req.k, model=req.model)
+        docs, token_gen = rag.answer(store, req.question)
     except RuntimeError as e:
         return StreamingResponse( iter([f"data: [ERROR] {e}"]), media_type="text/event-stream",)
 
