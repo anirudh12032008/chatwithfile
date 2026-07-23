@@ -9,7 +9,7 @@ from fastapi.staticfiles import StaticFiles
 import rag
 
 
-DOCS_DIR = "docs"
+DOCS_DIR = os.environ.get("DOCS_DIR", "docs")
 app = FastAPI(title="chat with your notes")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 _store = None
