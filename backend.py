@@ -62,12 +62,9 @@ def chat(req: ChatRequest):
     import json
     store = get_store()
     if store is None:
-        return StreamingResponse( iter(["data: [ERROR] upload a file first"]), media_type='text/event-stream')
-    try:
-        docs, token_gen = rag.answer(store, req.question)
-    except RuntimeError as e:
-        return StreamingResponse( iter([f"data: [ERROR] {e}"]), media_type="text/event-stream",)
-
+        raise HTTPException(400, "no index")
+        
+    docs, token_gen = rag.answer(store, req.question)
     def event_stream():
         sources = [
             {"source": Path(d.metadata.get("source", "?")).name, "preview": d.page_content[:300]} for d in docs
