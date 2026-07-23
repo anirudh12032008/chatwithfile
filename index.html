@@ -4,69 +4,30 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>chat with your notes</title>
-
-
-    <style>
-        :root {
-            --bg: #0f1116; 
-            --bg2: #1a1d26;
-            --border: #2a2e3c;
-            --text: #e6e6e6;
-            --dim: #9aa0ab;
-            --accent: #e8703a;
-        }
-        body{
-            background: var(--bg);
-            color: var(--text);
-            display: flex; height: 100vh
-        }
-        aside {
-            width: 260px;
-            background: var(--bg2);
-            border-right: 1px solid var(--border);
-            padding: 1rem;
-            flex-shrink: 0;
-        }
-    </style>
+<script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body>
-    <aside>
+    <aside class="w-60 bg-gray-900 border-r border-gray-700 p-4 text-white flex-col gap-4 shrink-0">
 
-        <h1>chat with your notes</h1>
-        <div id="status">Checking..</div>
+        <h1 class="text-xl font-bold">chat with your notes</h1>
+        <div id="statusBox" class="text-sm text-gray-400">Checking..</div>
 
         <h2>document</h2>
     <input type="file" id="fileInput" accept=".pdf,.txt,.md"/>
-    <div id="currentFile">no doc uploaded</div>
-        <button id="clearBtn" >clear chat</button>
+    <div id="currentFile" class="text-sm text-gray-400">no doc uploaded</div>
+        <button id="clearBtn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">clear chat</button>
     </aside>
 
-    <main>
-<div class="chat" id="chat">
-<div id="emptyState">upload a document in the sidebar</div>
+    <main class="flex-1 flex flex-col">
+<div class="chat flex-1 overflow-y-auto" id="chat">
+<div class="text-sm text-gray-400" id="emptyState">upload a document in the sidebar</div>
 </div>
 
-    <div class="composer">
-<input type="text" id="question" placeholder="ask"/>
-<button id="sendBtn" disabled>Send</button>
+    <div class="composer flex gap-2 p-4 border-t border-gray-700">
+<input type="text" class="bg-gray-800 text-white placeholder:text-gray-500 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500" id="question" placeholder="ask"/>
+<button id="sendBtn" disabled class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Send</button>
     </div>
-
     </main>
-
-
-
-    
-
-
-
-
-
-
-
-
-
-
-
 
     <script>
         const chatEl = document.getElementById('chat');
