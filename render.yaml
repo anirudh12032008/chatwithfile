@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: chatwithfile
+    env: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false
+
+      - key: DOCS_DIR
+        value: /tmp/docs
+      -key: CHROMA_DIR
+        value: /tmp/chroma_db
