@@ -1,9 +1,23 @@
+# RAGE
+# load -> chunk -> embed -> store -> retrieve -> generate
+
+
+
+
+
+
+
+
+
+
+
 import os
 from pathlib import Path
+
+
 os.environ.setdefault("ANNONYMIZED_TELEMETRY", "False")
 import logging
 logging.getLogger("chromadb.telemetry").setLevel(logging.CRITICAL)
-import gc
 from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.embeddings import FastEmbedEmbeddings
@@ -47,24 +61,13 @@ def build_index(doc: str="docs", batch_size: int = 32) -> Chroma:
         shutil.rmtree(CHROMA_DIR)
     splitter = RecursiveCharacterTextSplitter(chunk_size=800, chunk_overlap=150)
 
-    embeddings = get_embeddings()
-    store = None
-    total = 0
+    all_chunks = []
     for path in paths:
         print("loading")
         loader = PyPDFLoader(str(path)) if path.suffix.lower() == ".pdf" else TextLoader(str(path), encoding="utf-8")
-        docs = loader.load()
-        chunks = splitter.split_documents(docs)
-        del docs
-        for i in range(0, len(chunks), batch_size):
-            batch = chunks[i: i + batch_size]
-            if store is None:   
-                store = Chroma.from_documents(batch, embedding=get_embeddings(), persist_directory=CHROMA_DIR)
-            else:
-                store.add_documents(batch)
-            total += len(batch)
-        del chunks
-        gc.collect()
+        all_chunks.extend(splitter.split_documents(loader.load()))
+        store = Chroma.from_documents(all_chunks, embedding=get_embeddings(), persist_directory=CHROMA_DIR)
+    print(f"store in {CHROMA_DIR}")
     return store
 
 

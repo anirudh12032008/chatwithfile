@@ -10,15 +10,10 @@
 
         <h1>chat with your notes</h1>
         <div id="status">Checking..</div>
-        <h2>Model</h2>
-        <input id="model" type="text" value="llama-3.1-8b-instant"/>
-        <h2>Retrieval</h2>
-        <label for="">chunks (k)</label>
-        <input type="number" id="k" value="4" min="1" max="10"/>
 
         <h2>document</h2>
     <input type="file" id="fileInput" accept=".pdf,.txt,.md"/>
-    <div id="curr_file">no doc uploaded</div>
+    <div id="currentFile">no doc uploaded</div>
         <button id="clearBtn" >clear chat</button>
     </aside>
 
@@ -29,7 +24,7 @@
 
     <div class="composer">
 <input type="text" id="question" placeholder="ask"/>
-<button id="sendBtn">Send</button>
+<button id="sendBtn" disabled>Send</button>
     </div>
 
     </main>
@@ -51,22 +46,24 @@
 
     <script>
         const chatEl = document.getElementById('chat');
-        const el = document.getElementById('statusBox');
         let indexReady = false;
         async function refreshStatus(){
         
-            const data = await fetch('/api/status').then(r => r.json());
-            indexReady = data.index_ready;
-            if (!data.groq_key_set){
-                el.textContent= 'no api';
-            } else if (!data.index_ready){
-                el.textContent = 'upload doc'
+            const d = await fetch('/api/status').then(r => r.json());
+            indexReady = d.index_ready;
+            const box = document.getElementById('statusBox');
+            if (!d.groq_key_set){
+                box.textContent= 'no groq api set';
+            } else if (!d.index_ready){
+                box.textContent = 'upload doc to start'
             } else {
-                el.textContent = 'index ready';
+                box.textContent = 'index ready';
 
             }
-            const cd = document.getElementById('currentFile');
-            cd.textContent = data.curr_file ? `${data.curr_file}`: 'no doc';
+
+            document.getElementById('currentFile').textContent = d.curr_file ? `${d.curr_file}`: 'no doc uploaded';
+
+            document.getElementById('sendBtn').disabled = !d.index_ready;
 
         }
         document.getElementById('fileInput').addEventListener('change', async (e)=> {
@@ -99,10 +96,10 @@
 
         function renderMarkdown(text){
             let html = escapeHtml(text);
-            const codeBlocks = [];
+            const blocks = [];
             html = html.replace(/```([\s\S]*?)```/g, (_, code) => {
-                codeBlocks.push(`<pre><code>${code.trim()}</code></pre>`);
-                return `\x00BLOCK${codeBlocks.length - 1}\x00`;
+                blocks.push(`<pre><code>${code.trim()}</code></pre>`);
+                return `\x00BLOCK${blocks.length - 1}\x00`;
             });
 
 
@@ -127,8 +124,7 @@
             if (inList) out.push('</ul>');
 
 
-            html = out.join('\n').replace(/\n(?!<)/g, '<br>');
-            return html;
+            return html.replace(/\x00BLOCK(\d+)\x00/g, (_, i) => blocks[i]);
         }
 
 
@@ -148,10 +144,6 @@
             return content;
         }
 
-        function setContent(el, txt){
-            el.innerHTML = renderMarkdown(txt);
-        }
-
 
         async function sendQuestion(){
             const input = document.getElementById('question');
@@ -160,13 +152,12 @@
             input.value = ''
             addMsg('user', question);
             const botContent = addMsg('bot', '');
-            const model = document.getElementById('model').value;
-            const k = Number(document.getElementById('k').value);
+            
 
             const res = await fetch('/api/chat', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({question, model, k}),
+                body: JSON.stringify({question}),
             });
 
 
@@ -190,7 +181,7 @@
                         console.log('sources: ', JSON.parse(data));
                     } else if (eventType !== 'done' && data){
                         fullText += JSON.parse(data);
-                        setContent(botContent, fullText);
+                        botContent.innerHTML = renderMarkdown(fullText)
                         chatEl.scrollTop = chatEl.scrollHeight;
                     }
                 }
