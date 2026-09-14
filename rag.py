@@ -1,16 +1,6 @@
 # RAGE
 # load -> chunk -> embed -> store -> retrieve -> generate
 
-
-
-
-
-
-
-
-
-
-
 import os
 from pathlib import Path
 
