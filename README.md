@@ -5,6 +5,7 @@ it runs on render free plan so downtime or delay is unavoidable
 
 ## screenshots
 
+<img width="1704" height="958" alt="Screenshot 2026-09-16 at 8 54 31 AM" src="https://github.com/user-attachments/assets/6d7237e7-0205-45e4-a97f-c4de98ebb0e9" />
 
 ## what it does
 - upload a txt, pdf or md from the side bar
