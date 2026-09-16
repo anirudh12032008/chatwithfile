@@ -33,7 +33,7 @@ EMB_CACHE = os.environ.get("FASTEMBED_CACHE", "fastembed_cache")
 def get_embeddings():
     if not hasattr(get_embeddings, "_model"):
         get_embeddings._model = FastEmbedEmbeddings(model_name="BAAI/bge-small-en-v1.5", cache_dir=EMB_CACHE)
-    return get_embeddings.__module__
+    return get_embeddings._model
 
 
 def get_llm(model: str | None = None) -> ChatGroq:
